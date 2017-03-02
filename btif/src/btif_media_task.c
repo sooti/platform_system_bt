@@ -4978,13 +4978,49 @@ BOOLEAN btif_media_send_vendor_media_chn_cfg()
     UINT8 param[8];
     bt_bdaddr_t bd_addr;
     BD_ADDR addr;
+    UINT8 codec_type = A2DP_CODEC_SBC;
+
+    if (btif_av_is_peer_edr() && (btif_av_peer_supports_3mbps() == FALSE)) {
+        // This condition would be satisfied only if the remote device is
+        // EDR and supports only 2 Mbps, but the effective AVDTP MTU size
+        // exceeds the 2DH5 packet size.
+        APPL_TRACE_DEBUG("%s The remote devce is EDR but does not support 3 Mbps", __func__);
+
+        if (btif_media_cb.TxAaMtuSize > MAX_2MBPS_AVDTP_MTU) {
+            APPL_TRACE_WARNING("%s Restricting AVDTP MTU size to %d",
+                __func__, MAX_2MBPS_AVDTP_MTU);
+            btif_media_cb.TxAaMtuSize = MAX_2MBPS_AVDTP_MTU;
+        }
+    }
+
+    codec_type = bta_av_co_get_current_codec();
+    if (codec_type == A2D_NON_A2DP_MEDIA_CT) {
+        UINT8* ptr = bta_av_co_get_current_codecInfo();
+        if (ptr) {
+            tA2D_APTX_CIE* codecInfo = (tA2D_APTX_CIE*) &ptr[BTA_AV_CFG_START_IDX];
+            if (codecInfo && codecInfo->vendorId == A2D_APTX_VENDOR_ID && codecInfo->codecId == A2D_APTX_CODEC_ID_BLUETOOTH)
+                   codec_type = A2DP_CODEC_APTX;
+            else if (codecInfo && codecInfo->vendorId == A2D_APTX_HD_VENDOR_ID && codecInfo->codecId == A2D_APTX_HD_CODEC_ID_BLUETOOTH)
+                   codec_type = A2DP_CODEC_APTX_HD;
+        }
+    }
+
+    if ((codec_type == A2DP_CODEC_APTX) || (codec_type == A2DP_CODEC_APTX_HD))
+    {
+        if (btif_media_cb.TxAaMtuSize > MAX_2MBPS_AVDTP_MTU)
+        {
+            APPL_TRACE_IMP("Restricting AVDTP MTU size to 663 for APTx codecs");
+            btif_media_cb.TxAaMtuSize = MAX_2MBPS_AVDTP_MTU;
+        }
+    }
+
     btif_av_get_peer_addr(&bd_addr);
     memcpy(addr, bd_addr.address, sizeof(BD_ADDR));
     UINT16 acl_hdl = BTM_GetHCIConnHandle(addr, BT_TRANSPORT_BR_EDR);
     APPL_TRACE_IMP("btif_media_send_vendor_media_chn_cfg");
     APPL_TRACE_IMP("AVDTP mtu: %u, hdl: %u", btif_media_cb.TxAaMtuSize, acl_hdl);
 
-    if (btif_media_cb.max_bitpool <= BTIF_A2DP_MAX_BITPOOL_MQ)
+    if ((codec_type == A2DP_CODEC_SBC) && (btif_media_cb.max_bitpool <= BTIF_A2DP_MAX_BITPOOL_MQ))
     {
         APPL_TRACE_IMP("Restricting streaming MTU size for MQ Bitpool");
         btif_media_cb.TxAaMtuSize = MAX_2MBPS_AVDTP_MTU;
