@@ -38,6 +38,7 @@
 #include "bta_api.h"
 #include "bta_av_api.h"
 #include "btif_av.h"
+#include "btif_media.h"
 #include "btif_common.h"
 #include "btif_util.h"
 #include "bt_common.h"
@@ -47,6 +48,7 @@
 #include "osi/include/list.h"
 #include "osi/include/properties.h"
 #include "btu.h"
+#include "stack/sdp/sdpint.h"
 #define RC_INVALID_TRACK_ID (0xFFFFFFFFFFFFFFFFULL)
 
 /*****************************************************************************
@@ -405,10 +407,12 @@ extern void btif_get_latest_playing_device(BD_ADDR address); //get the Playing d
 extern BOOLEAN btif_av_is_playing();
 extern BOOLEAN btif_av_is_device_connected(BD_ADDR address);
 extern void btif_av_trigger_dual_handoff(BOOLEAN handoff, BD_ADDR address);
-extern BOOLEAN btif_hf_is_call_idle();
+extern BOOLEAN btif_hf_is_call_vr_idle();
 extern BOOLEAN btif_av_is_current_device(BD_ADDR address);
 extern UINT16 btif_av_get_num_connected_devices(void);
 extern UINT16 btif_av_get_num_playing_devices(void);
+extern BOOLEAN btif_av_is_offload_supported();
+extern UINT8 btif_av_idx_by_bdaddr(BD_ADDR bd_addr);
 
 extern fixed_queue_t *btu_general_alarm_queue;
 
@@ -2381,6 +2385,17 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
                     }
                 }
             }
+#if (defined(AVCT_COVER_ART_INCLUDED) && (AVCT_COVER_ART_INCLUDED == TRUE))
+            int ver = AVRC_REV_INVALID;
+            ver = sdp_get_stored_avrc_tg_version (remote_addr.address);
+            if ((!(btif_rc_cb[index].rc_features & BTA_AV_FEAT_CA)) ||
+                  (ver < AVRC_REV_1_6) || (ver == AVRC_REV_INVALID))
+            {
+                BTIF_TRACE_IMP("remove the cover art elem attribute if remote doesn't support avrcp1.6");
+                if(num_attr == MAX_ELEM_ATTR_SIZE)
+                    num_attr--;
+            }
+#endif
             FILL_PDU_QUEUE(IDX_GET_ELEMENT_ATTR_RSP, ctype, label, TRUE, index, pavrc_cmd->pdu);
             HAL_CBACK(bt_rc_callbacks, get_element_attr_cb, num_attr, element_attrs, &remote_addr);
         }
@@ -2419,7 +2434,7 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
         {
             BTIF_TRACE_EVENT("%s() AVRC_PDU_SET_ADDRESSED_PLAYER", __FUNCTION__);
             FILL_PDU_QUEUE(IDX_SET_ADDRESS_PLAYER_RSP, ctype, label, TRUE, index, pavrc_cmd->pdu);
-            if (!btif_hf_is_call_idle())
+            if (!btif_hf_is_call_vr_idle())
             {
                 set_addrplayer_rsp(ERR_PLAYER_NOT_ADDRESED, &remote_addr); // send reject if call is in progress
                 return;
@@ -2539,7 +2554,17 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
                 num_attr_requested = idx;
                 BTIF_TRACE_ERROR("num_attr_requested: %d", num_attr_requested);
             }
-
+#if (defined(AVCT_COVER_ART_INCLUDED) && (AVCT_COVER_ART_INCLUDED == TRUE))
+            int ver = AVRC_REV_INVALID;
+            ver = sdp_get_stored_avrc_tg_version (remote_addr.address);
+            if ((!(btif_rc_cb[index].rc_features & BTA_AV_FEAT_CA)) ||
+                  (ver < AVRC_REV_1_6) || (ver == AVRC_REV_INVALID))
+            {
+                BTIF_TRACE_IMP("remove the cover art elem attribute if remote doesn't support avrcp1.6");
+                if(num_attr_requested == MAX_ELEM_ATTR_SIZE)
+                    num_attr_requested--;
+            }
+#endif
             if (btif_rc_cb[index].rc_connected == TRUE)
             {
                 FILL_PDU_QUEUE(IDX_GET_ITEM_ATTR_RSP, ctype, label, TRUE, index, pavrc_cmd->pdu);
@@ -2792,9 +2817,11 @@ static bt_status_t get_play_status_rsp(btrc_play_status_t play_status, uint32_t 
 {
     tAVRC_RESPONSE avrc_rsp;
     int rc_index;
+    int av_index;
     CHECK_RC_CONNECTED
 
     rc_index = btif_rc_get_idx_by_addr(bd_addr->address);
+    av_index = btif_av_idx_by_bdaddr(bd_addr->address);
     if (rc_index == btif_max_rc_clients)
     {
         BTIF_TRACE_ERROR("-%s on unknown index = %d", __FUNCTION__);
@@ -2806,6 +2833,17 @@ static bt_status_t get_play_status_rsp(btrc_play_status_t play_status, uint32_t 
     avrc_rsp.get_play_status.song_len = song_len;
     avrc_rsp.get_play_status.song_pos = song_pos;
     avrc_rsp.get_play_status.play_status = play_status;
+    BTIF_TRACE_ERROR("%s: play_status: %d",__FUNCTION__, avrc_rsp.get_play_status.play_status);
+    if ((avrc_rsp.get_play_status.play_status == BTRC_PLAYSTATE_PLAYING) &&
+         (btif_av_check_flag_remote_suspend(av_index)))
+    {
+        BTIF_TRACE_ERROR("%s: clear remote suspend flag: %d",__FUNCTION__, av_index);
+        btif_av_clear_remote_suspend_flag();
+        if (btif_av_is_offload_supported())
+        {
+            btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
+        }
+    }
 
     avrc_rsp.get_play_status.pdu = AVRC_PDU_GET_PLAY_STATUS;
     avrc_rsp.get_play_status.opcode = opcode_from_pdu(AVRC_PDU_GET_PLAY_STATUS);
@@ -3184,6 +3222,7 @@ static bt_status_t register_notification_rsp(btrc_event_id_t event_id,
     }
     memset(&(avrc_rsp.reg_notif), 0, sizeof(tAVRC_REG_NOTIF_RSP));
     avrc_rsp.reg_notif.event_id = event_id;
+    int av_index = btif_av_idx_by_bdaddr(bd_addr->address);
 
     switch(event_id)
     {
@@ -3193,8 +3232,18 @@ static bt_status_t register_notification_rsp(btrc_event_id_t event_id,
              * suspend within 3s after pause, and DUT within 3s
              * initiates Play
             */
-            if (avrc_rsp.reg_notif.param.play_status == PLAY_STATUS_PLAYING)
+            BTIF_TRACE_ERROR("%s: play_status: %d",__FUNCTION__,
+                                  avrc_rsp.reg_notif.param.play_status);
+            if ((avrc_rsp.reg_notif.param.play_status == PLAY_STATUS_PLAYING) &&
+                (btif_av_check_flag_remote_suspend(av_index)))
+            {
+                BTIF_TRACE_ERROR("%s: clear remote suspend flag: %d",__FUNCTION__,av_index );
                 btif_av_clear_remote_suspend_flag();
+                if (btif_av_is_offload_supported())
+                {
+                    btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
+                }
+            }
             break;
         case BTRC_EVT_TRACK_CHANGE:
             memcpy(&(avrc_rsp.reg_notif.param.track), &(p_param->track), sizeof(btrc_uid_t));
