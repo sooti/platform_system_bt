@@ -152,6 +152,9 @@ typedef enum {
   // such scenarios, device requiring this workaorund need to use specific ssr max latency
   // values.
   INTEROP_UPDATE_HID_SSR_MAX_LAT,
+  // Some Carkits being AVRCP v1.3 upon receiving Play Application Setting Command Response
+  // and notification, doesn't send Passthrough commands back to DUT in Streaming State
+  INTEROP_DISABLE_PLAYER_APPLICATION_SETTING_CMDS,
 
   // Some remotes are very strict in receiving the call active
   // indicator and SCO connection request order for MT call.
