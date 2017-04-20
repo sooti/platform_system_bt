@@ -153,6 +153,13 @@ typedef enum {
   // values.
   INTEROP_UPDATE_HID_SSR_MAX_LAT,
 
+  // Some remotes are very strict in receiving the call active
+  // indicator and SCO connection request order for MT call.
+  // If CIEV1,1 and SCO connection request are sent back to back
+  // to SOC, it may send SCO connection request first then CIEV1,1
+  // which may lead to remotes not rendering SCO audio.
+  INTEROP_DELAY_SCO_FOR_MT_CALL,
+
   END_OF_INTEROP_LIST
 
 } interop_feature_t;
