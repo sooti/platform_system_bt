@@ -1387,6 +1387,7 @@ static BOOLEAN is_pbap_record_blacklisted (tSDP_ATTRIBUTE attr,
         bt_property_t prop_name;
         bt_bdname_t bdname;
 
+        memset(&bdname, 0, sizeof(bt_bdname_t));
         BTIF_STORAGE_FILL_PROPERTY(&prop_name, BT_PROPERTY_BDNAME,
                                sizeof(bt_bdname_t), &bdname);
         if (btif_storage_get_remote_device_property(&remote_bdaddr,
