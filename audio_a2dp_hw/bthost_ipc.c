@@ -762,18 +762,17 @@ void a2dp_open_ctrl_path(struct a2dp_stream_common *common)
         {
             /* success, now check if stack is ready */
             if (check_a2dp_open_ready(common) == 0)
-                break;
-
-            ERROR("error :No active a2dp connection, wait 250 ms and retry");
-            usleep(250000);
+                return;
+            ERROR("a2dp_open_ctrl_path : No valid a2dp connection, abort");
+            usleep(100000);
             skt_disconnect(common->ctrl_fd);
             common->ctrl_fd = AUDIO_SKT_DISCONNECTED;
         }
 
         /* ctrl channel not ready, wait a bit */
-        if (CTRL_CHAN_RETRY_COUNT > 1)
+        if (i < CTRL_CHAN_RETRY_COUNT - 1)
         {
-            usleep(250000);
+            usleep(100000);
         }
     }
 }
