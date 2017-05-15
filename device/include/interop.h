@@ -164,6 +164,11 @@ typedef enum {
   // SCO Connection.
   INTEROP_DISABLE_CODEC_NEGOTIATION,
 
+  // Some remotes are going into sniff mode during SCO connection process and taking time
+  // for SCO connection to complete. For such devices, disable sniff when SCO is
+  // connecting and enable it after SCO disconnection.
+  INTEROP_DISABLE_SNIFF_POLICY_DURING_SCO,
+
   END_OF_INTEROP_LIST
 
 } interop_feature_t;
