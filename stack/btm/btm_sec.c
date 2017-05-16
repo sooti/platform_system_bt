@@ -4107,7 +4107,6 @@ void btm_sec_auth_complete (UINT16 handle, UINT8 status)
         /* don't post auth status key missing,peer user disc and connection timeout cases */
         if ((old_state != BTM_PAIR_STATE_IDLE) ||
             ((status != HCI_SUCCESS) &&
-             (status != HCI_ERR_KEY_MISSING) &&
              (status != HCI_ERR_PEER_USER) &&
              (status != HCI_ERR_CONNECTION_TOUT) &&
              (status != HCI_ERR_LMP_RESPONSE_TIMEOUT)))
