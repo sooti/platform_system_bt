@@ -1094,31 +1094,39 @@ int audio_stream_close()
 }
 int audio_stop_stream()
 {
-    INFO("%s",__func__);
-    pthread_mutex_lock(&audio_stream.lock);
-    if (suspend_audio_datapath(&audio_stream, true) == 0)
+    INFO("%s state = %s",__func__,dump_a2dp_hal_state(audio_stream.state));
+    if (audio_stream.state != AUDIO_A2DP_STATE_SUSPENDED)
     {
-        INFO("audio stop stream successful");
+        pthread_mutex_lock(&audio_stream.lock);
+        if (suspend_audio_datapath(&audio_stream, true) == 0)
+        {
+            INFO("audio stop stream successful");
+            pthread_mutex_unlock(&audio_stream.lock);
+            return 0;
+        }
+        audio_stream.state = AUDIO_A2DP_STATE_STOPPED;
         pthread_mutex_unlock(&audio_stream.lock);
-        return 0;
+        return -1;
     }
-    audio_stream.state = AUDIO_A2DP_STATE_STOPPED;
-    pthread_mutex_unlock(&audio_stream.lock);
-    return -1;
+    return 0;
 }
 
 int audio_suspend_stream()
 {
-    INFO("%s",__func__);
-    pthread_mutex_lock(&audio_stream.lock);
-    if (suspend_audio_datapath(&audio_stream, false) == 0)
+    INFO("%s state = %s",__func__,dump_a2dp_hal_state(audio_stream.state));
+    if (audio_stream.state != AUDIO_A2DP_STATE_SUSPENDED)
     {
-        INFO("audio start stream successful");
+        pthread_mutex_lock(&audio_stream.lock);
+        if (suspend_audio_datapath(&audio_stream, false) == 0)
+        {
+            INFO("audio suspend stream successful");
+            pthread_mutex_unlock(&audio_stream.lock);
+            return 0;
+        }
         pthread_mutex_unlock(&audio_stream.lock);
-        return 0;
+        return -1;
     }
-    pthread_mutex_unlock(&audio_stream.lock);
-    return -1;
+    return 0;
 }
 
 void audio_handoff_triggered()
