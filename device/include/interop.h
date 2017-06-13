@@ -104,6 +104,10 @@ typedef enum {
   // preferred conn params for such devices and allow them to explicity ask for it.
   INTEROP_DISABLE_LE_CONN_PREFERRED_PARAMS,
 
+  //Few carkit hfp version is hfp1.5 but it support hfp indicator, violate spec
+  //remove hfp indicator for such device
+  INTEROP_DISABLE_HF_INDICATOR,
+
   // Few remote devices do not understand AVRCP version greater than 1.3. For these
   // devices, we would like to blacklist them and advertise AVRCP version as 1.3
   INTEROP_ADV_AVRCP_VER_1_3,
@@ -152,6 +156,9 @@ typedef enum {
   // such scenarios, device requiring this workaorund need to use specific ssr max latency
   // values.
   INTEROP_UPDATE_HID_SSR_MAX_LAT,
+  // Some Carkits being AVRCP v1.3 upon receiving Play Application Setting Command Response
+  // and notification, doesn't send Passthrough commands back to DUT in Streaming State
+  INTEROP_DISABLE_PLAYER_APPLICATION_SETTING_CMDS,
 
   // Some remotes are very strict in receiving the call active
   // indicator and SCO connection request order for MT call.
@@ -163,6 +170,11 @@ typedef enum {
   // Disable codec negotiation for such remotes and directly initiate
   // SCO Connection.
   INTEROP_DISABLE_CODEC_NEGOTIATION,
+
+  // Some remotes are going into sniff mode during SCO connection process and taking time
+  // for SCO connection to complete. For such devices, disable sniff when SCO is
+  // connecting and enable it after SCO disconnection.
+  INTEROP_DISABLE_SNIFF_POLICY_DURING_SCO,
 
   END_OF_INTEROP_LIST
 
