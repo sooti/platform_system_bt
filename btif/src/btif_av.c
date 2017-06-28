@@ -72,6 +72,7 @@ typedef enum {
 #define BTIF_AV_FLAG_REMOTE_SUSPEND        0x2
 #define BTIF_AV_FLAG_PENDING_START         0x4
 #define BTIF_AV_FLAG_PENDING_STOP          0x8
+#define BTIF_AV_FLAG_PENDING_DISCONNECT   0x10
 /* Host role defenitions */
 #define HOST_ROLE_MASTER                   0x00
 #define HOST_ROLE_SLAVE                    0x01
@@ -1450,9 +1451,11 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data,
                  btif_a2dp_on_stopped(NULL);
              }
 
+            btif_av_cb[index].flags |= BTIF_AV_FLAG_PENDING_DISCONNECT;
             /* inform the application that we are disconnected */
             btif_report_connection_state(BTAV_CONNECTION_STATE_DISCONNECTED,
                                         &(btif_av_cb[index].peer_bda));
+            btif_av_cb[index].flags &= ~BTIF_AV_FLAG_PENDING_DISCONNECT;
 
             /* change state to idle, send acknowledgement if start is pending */
             if (btif_av_cb[index].flags & BTIF_AV_FLAG_PENDING_START) {
@@ -2808,6 +2811,8 @@ static bt_status_t connect_int(bt_bdaddr_t *bd_addr, uint16_t uuid)
 
         BTIF_TRACE_ERROR("%s: All indexes are full", __FUNCTION__);
 
+        btif_report_connection_state(BTAV_CONNECTION_STATE_DISCONNECTED, bd_addr);
+
         /* Multicast: Check if AV slot is available for connection
          * If not available, AV got connected to different devices.
          * Disconnect this RC connection without AV connection.
@@ -3053,6 +3058,7 @@ BOOLEAN btif_av_stream_ready(void)
          * Check the pending SUSPEND flag and return failure
          * if suspend is in progress.
          */
+        BTIF_TRACE_DEBUG("btif_av_stream_ready flags: %d", btif_av_cb[i].flags);
         if (btif_av_cb[i].dual_handoff ||
             (btif_av_cb[i].flags & BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING))
         {
@@ -3060,7 +3066,7 @@ BOOLEAN btif_av_stream_ready(void)
             break;
         }
         else if (btif_av_cb[i].flags &
-            (BTIF_AV_FLAG_REMOTE_SUSPEND|BTIF_AV_FLAG_PENDING_STOP))
+            (BTIF_AV_FLAG_REMOTE_SUSPEND|BTIF_AV_FLAG_PENDING_STOP|BTIF_AV_FLAG_PENDING_DISCONNECT))
         {
             status = FALSE;
             break;
