@@ -314,6 +314,7 @@ void btif_a2dp_on_stop_req(void);
 void btif_a2dp_on_stopped(tBTA_AV_SUSPEND *p_av);
 void btif_a2dp_on_suspend(void);
 void btif_a2dp_on_suspended(tBTA_AV_SUSPEND *p_av);
+UINT8 btif_a2dp_get_pending_hal_command();
 void btif_a2dp_set_tx_flush(BOOLEAN enable);
 void btif_a2dp_set_rx_flush(BOOLEAN enable);
 void btif_media_check_iop_exceptions(UINT8 *peer_bda);

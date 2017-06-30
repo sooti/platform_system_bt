@@ -40,6 +40,8 @@
 #include <cutils/properties.h>
 #include "device/include/interop.h"
 #include "btif_storage.h"
+#include "audio_a2dp_hw.h"
+
 /*****************************************************************************
 **  Constants & Macros
 ******************************************************************************/
@@ -1512,6 +1514,7 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
     tBTA_AV *p_av = (tBTA_AV*)p_data;
     btif_sm_state_t state = BTIF_AV_STATE_IDLE;
     int i;
+    BOOLEAN hal_suspend_pending = FALSE;
 
     BTIF_TRACE_IMP("%s event:%s flags %x  index =%d", __FUNCTION__,
                      dump_av_sm_event_name(event), btif_av_cb[index].flags, index);
@@ -1660,7 +1663,6 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
             break;
 
         case BTA_AV_SUSPEND_EVT:
-
             BTIF_TRACE_EVENT("BTA_AV_SUSPEND_EVT status %d, init %d",
                  p_av->suspend.status, p_av->suspend.initiator);
             //Check if this suspend is due to DUAL_Handoff
@@ -1703,8 +1705,14 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
              * Keep the suspend failure handling untouched and handle
              * only success case to check and avoid calling onsuspended.
              */
+            if (btif_a2dp_get_pending_hal_command() == A2DP_CTRL_CMD_SUSPEND ||
+                btif_a2dp_get_pending_hal_command() == A2DP_CTRL_CMD_STOP)
+            {
+                BTIF_TRACE_DEBUG("HAL suspend/stop pending ack the suspend");
+                hal_suspend_pending = TRUE;
+            }
             if ((p_av->suspend.status != BTA_AV_SUCCESS) ||
-                !btif_av_is_playing_on_other_idx(index))
+                hal_suspend_pending || !btif_av_is_playing_on_other_idx(index))
             {
                 btif_a2dp_on_suspended(&p_av->suspend);
             }
