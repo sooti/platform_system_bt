@@ -249,11 +249,13 @@ BOOLEAN btif_av_is_codec_offload_supported(int codec);
 BOOLEAN btif_av_is_under_handoff();
 void btif_av_reset_reconfig_flag();
 BOOLEAN btif_av_is_device_disconnecting();
+BOOLEAN btif_av_is_suspend_stop_pending_ack();
 #else
 #define btif_av_is_codec_offload_supported(codec) (0)
 #define btif_av_is_under_handoff() (0)
 #define btif_av_reset_reconfig_flag() (0)
 #define btif_av_is_device_disconnecting() (0)
+#define btif_av_is_suspend_stop_pending_ack() (0)
 #endif
 
 const char *dump_av_sm_state_name(btif_av_state_t state)
@@ -1311,6 +1313,7 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data,
             if ((!(btif_av_cb[index].flags & BTIF_AV_FLAG_PENDING_START)) && (!btif_hf_is_call_vr_idle())) {
                 BTIF_TRACE_EVENT("%s: trigger suspend as call is in progress!!", __FUNCTION__);
                 btif_av_cb[index].flags &= ~BTIF_AV_FLAG_PENDING_START;
+                btif_av_cb[index].is_remote_start_received = TRUE;
                 btif_sm_change_state(btif_av_cb[index].sm_handle, BTIF_AV_STATE_STARTED);
                 btif_dispatch_sm_event(BTIF_AV_REMOTE_SUSPEND_STREAM_REQ_EVT, NULL, 0);
                 break;
@@ -1535,12 +1538,23 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
             /*Ack from entry point of started handler instead of open state to avoid race condition*/
             if (btif_av_cb[index].peer_sep == AVDT_TSEP_SNK)
             {
-                if (btif_a2dp_on_started(&p_av->start,
-                    ((btif_av_cb[index].flags & BTIF_AV_FLAG_PENDING_START) != 0),
-                      btif_av_cb[index].bta_handle))
+                if (!((!enable_multicast)&&((btif_av_cb[index].is_remote_start_received)
+                && ((btif_av_cb[index].flags & BTIF_AV_FLAG_PENDING_START) == 0))))
                 {
-                    /* only clear pending flag after acknowledgement */
-                    btif_av_cb[index].flags &= ~BTIF_AV_FLAG_PENDING_START;
+                    BTIF_TRACE_IMP("%s update media task on DUT initiated start for index =%d",
+                        __FUNCTION__, index);
+                    if (btif_a2dp_on_started(&p_av->start,
+                        ((btif_av_cb[index].flags & BTIF_AV_FLAG_PENDING_START) != 0),
+                          btif_av_cb[index].bta_handle))
+                    {
+                        /* only clear pending flag after acknowledgement */
+                        btif_av_cb[index].flags &= ~BTIF_AV_FLAG_PENDING_START;
+                    }
+                }
+                else
+                {
+                    BTIF_TRACE_IMP("%s Do not update media task on remote start for index =%d",
+                        __FUNCTION__, index);
                 }
             }
 
@@ -1609,6 +1623,7 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
                 }
                 //This is latest device to play now
                 btif_av_cb[index].current_playing = TRUE;
+                btif_av_reset_reconfig_flag();
             }
             break;
 
@@ -2850,7 +2865,6 @@ void btif_av_trigger_dual_handoff(BOOLEAN handoff, BD_ADDR address)
     }
     if (bt_split_a2dp_enabled)
     {
-        btif_media_send_reset_vendor_state();
         next_idx = btif_av_get_other_connected_idx(index);
         /* Fix for below Klockwork Issue
         Array 'btif_av_cb' of size 2 may use index value(s) -1 */
@@ -3236,6 +3250,39 @@ BOOLEAN btif_av_stream_started_ready(void)
         }
     }
     BTIF_TRACE_DEBUG("btif_av_stream_started_ready: %d", status);
+    return status;
+}
+
+/*******************************************************************************
+**
+** Function         btif_av_stream_started_ready
+**
+** Description      Checks whether AV ready for media start in streaming state
+**
+** Returns          None
+**
+*******************************************************************************/
+
+BOOLEAN btif_av_is_suspend_stop_pending_ack(void)
+{
+    int i;
+    BOOLEAN status = FALSE;
+
+    for (i = 0; i < btif_max_av_clients; i++)
+    {
+        btif_av_cb[i].state = btif_sm_get_state(btif_av_cb[i].sm_handle);
+        BTIF_TRACE_DEBUG("btif_av_stream_ready flags: %d, state: %d",
+                                btif_av_cb[i].flags, btif_av_cb[i].state);
+        if ((btif_av_cb[i].flags &
+            (BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING |
+            BTIF_AV_FLAG_PENDING_STOP)) &&
+            (btif_av_cb[i].state == BTIF_AV_STATE_STARTED))
+        {
+            status = TRUE;
+            break;
+        }
+    }
+    BTIF_TRACE_DEBUG("btif_av_is_stream_suspend_pending_ack: %d", status);
     return status;
 }
 

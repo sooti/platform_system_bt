@@ -1172,16 +1172,24 @@ void clear_a2dpsuspend_flag()
 void * audio_get_codec_config(uint8_t *multicast_status, uint8_t *num_dev,
                               audio_format_t *codec_type)
 {
+    int i, status, j;
     INFO("%s: state = %s",__func__,dump_a2dp_hal_state(audio_stream.state));
 
     pthread_mutex_lock(&audio_stream.lock);
     a2dp_get_multicast_status(&audio_stream, multicast_status,num_dev);
 
     DEBUG("got multicast status = %d dev = %d",*multicast_status,*num_dev);
-    if (a2dp_read_codec_config(&audio_stream, 0) == 0)
+
+    for (i = 0; i < STREAM_START_MAX_RETRY_COUNT; i++)
     {
-        pthread_mutex_unlock(&audio_stream.lock);
-        return (a2dp_codec_parser(&audio_stream.codec_cfg[0], codec_type));
+        status = a2dp_read_codec_config(&audio_stream, 0);
+        if (status == A2DP_CTRL_ACK_SUCCESS)
+        {
+            pthread_mutex_unlock(&audio_stream.lock);
+            return (a2dp_codec_parser(&audio_stream.codec_cfg[0], codec_type));
+        }
+        INFO("%s: a2dp stream not configured,wait 100mse & retry", __func__);
+        usleep(100000);
     }
     pthread_mutex_unlock(&audio_stream.lock);
     return NULL;
@@ -1189,12 +1197,19 @@ void * audio_get_codec_config(uint8_t *multicast_status, uint8_t *num_dev,
 
 void* audio_get_next_codec_config(uint8_t idx, audio_format_t *codec_type)
 {
+    int i, status, j;
     INFO("%s",__func__);
     pthread_mutex_lock(&audio_stream.lock);
-    if (a2dp_read_codec_config(&audio_stream,idx) == 0)
+    for (i = 0; i < STREAM_START_MAX_RETRY_COUNT; i++)
     {
-        pthread_mutex_unlock(&audio_stream.lock);
-        return a2dp_codec_parser(&audio_stream.codec_cfg[0], codec_type);
+        status = a2dp_read_codec_config(&audio_stream, 0);
+        if (status == A2DP_CTRL_ACK_SUCCESS)
+        {
+            pthread_mutex_unlock(&audio_stream.lock);
+            return (a2dp_codec_parser(&audio_stream.codec_cfg[0], codec_type));
+        }
+        INFO("%s: a2dp stream not configured,wait 100mse & retry", __func__);
+        usleep(100000);
     }
     pthread_mutex_unlock(&audio_stream.lock);
     return NULL;
