@@ -966,30 +966,13 @@ static void btif_recv_ctrl_data(void)
             if (bt_split_a2dp_enabled && reconfig_a2dp)
             {
                 APPL_TRACE_DEBUG("Suspend called due to reconfig");
-                if (btif_av_is_under_handoff() && !btif_av_is_device_disconnecting()
-                    && btif_av_is_suspend_stop_pending_ack())
-                {
-                    APPL_TRACE_DEBUG("AV is under handoff and suspend/stop in progress");
-                }
-                //else if(btif_media_cb.tx_start_initiated || btif_av_is_device_disconnecting())
-                else
-                {
-                   APPL_TRACE_DEBUG("VS exchange started: ACK suspend, cmd_start will block");
-                   a2dp_cmd_acknowledge(A2DP_CTRL_ACK_SUCCESS);
-                }
-                break;
+                APPL_TRACE_DEBUG("VS exchange started: ACK suspend, cmd_start will block");
+                a2dp_cmd_acknowledge(A2DP_CTRL_ACK_SUCCESS);
             }
-            if (btif_av_stream_started_ready())
+            else if (btif_av_stream_started_ready())
             {
                 APPL_TRACE_DEBUG("Suspend stream request to Av");
                 btif_dispatch_sm_event(BTIF_AV_SUSPEND_STREAM_REQ_EVT, NULL, 0);
-            }
-            else if (bt_split_a2dp_enabled && btif_av_is_under_handoff())
-            {
-                /* Do nothing when handoff is in progress. On suspend cfm, a2dp cmd will
-                   be acknowledged. ACKing might lead to wrong codec config will be updated
-                   to hal during multi-codec connection */
-                APPL_TRACE_DEBUG("AV is under handoff");
             }
             else
             {
