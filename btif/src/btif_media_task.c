@@ -502,7 +502,6 @@ void disconnect_a2dp_on_vendor_start_failure();
 BOOLEAN btif_media_send_vendor_selected_codec();
 BOOLEAN btif_media_send_vendor_transport_cfg();
 BOOLEAN btif_media_send_vendor_scmst_hdr();
-void btif_a2dp_remote_start_timer();
 #else
 #define btif_av_get_av_hdl_from_idx(idx) (0)
 #define btif_av_is_under_handoff() (0)
@@ -519,9 +518,8 @@ void btif_a2dp_remote_start_timer();
 #define btif_media_send_vendor_selected_codec() (0)
 #define btif_media_send_vendor_transport_cfg()  (0)
 #define btif_media_send_vendor_scmst_hdr()      (0)
-#define btif_a2dp_remote_start_timer() (0)
 #endif
-
+void btif_a2dp_remote_start_timer();
 
 static tBTIF_MEDIA_CB btif_media_cb;
 static int media_task_running = MEDIA_TASK_STATE_OFF;
@@ -2002,7 +2000,6 @@ void btif_a2dp_on_suspended(tBTA_AV_SUSPEND *p_av)
     btif_media_task_stop_aa_req();
 }
 
-#ifdef BTA_AV_SPLIT_A2DP_ENABLED
 /*****************************************************************************
 **
 ** Function        btif_media_remote_start_alarm_cb
@@ -2027,13 +2024,10 @@ static void btif_media_remote_start_alarm_cb(UNUSED_ATTR void *context) {
 *******************************************************************************/
 void btif_a2dp_remote_start_timer()
 {
-    if (alarm_is_scheduled(btif_media_cb.remote_start_alarm))
-    {
-        alarm_free(btif_media_cb.remote_start_alarm);
-        btif_media_cb.remote_start_alarm = NULL;
-        APPL_TRACE_DEBUG("Suspend stream request to Av");
-        btif_dispatch_sm_event(BTIF_AV_SUSPEND_STREAM_REQ_EVT, NULL, 0);
-    }
+    alarm_free(btif_media_cb.remote_start_alarm);
+    btif_media_cb.remote_start_alarm = NULL;
+    APPL_TRACE_DEBUG("Suspend stream request to Av");
+    btif_dispatch_sm_event(BTIF_AV_SUSPEND_STREAM_REQ_EVT, NULL, 0);
 }
 
 /*****************************************************************************
@@ -2057,7 +2051,11 @@ void btif_a2dp_on_remote_started()
     alarm_set(btif_media_cb.remote_start_alarm, BTIF_REMOTE_START_TOUT,
               btif_media_remote_start_alarm_cb, NULL);
 }
-#endif
+
+BOOLEAN btif_is_remote_start_timer_scheduled()
+{
+    return (alarm_is_scheduled(btif_media_cb.remote_start_alarm))? TRUE:FALSE;
+}
 /*****************************************************************************
 **
 ** Function        btif_a2dp_on_offload_started
@@ -3784,7 +3782,8 @@ static void btif_media_task_aa_stop_tx(void)
     {
         APPL_TRACE_IMP("%s media_alarm is %srunning", __func__,
                          alarm_is_scheduled(btif_media_cb.media_alarm)? "" : "not ");
-        const bool send_ack = alarm_is_scheduled(btif_media_cb.media_alarm);
+        const bool send_ack = alarm_is_scheduled(btif_media_cb.media_alarm) |
+                                             btif_is_remote_start_timer_scheduled();
 
         if (isA2dAptXEnabled && A2d_aptx_thread)
         {
