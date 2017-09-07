@@ -1121,7 +1121,7 @@ static void btif_recv_ctrl_data(void)
 
                             /* For aptxHD BR = (Sampl_Rate * PCM_DEPTH * CHNL)/Compression_Ratio,
                                derived from classic */
-                            bitrate = ((btif_media_cb.media_feeding.cfg.pcm.sampling_freq * 16 * 2)/4);
+                            bitrate = ((btif_media_cb.media_feeding.cfg.pcm.sampling_freq * 24 * 2)/4);
                        }
                    }
                 }
