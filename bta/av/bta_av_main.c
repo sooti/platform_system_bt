@@ -983,8 +983,7 @@ static void bta_av_api_to_ssm(tBTA_AV_DATA *p_data)
      * streams are not yet started. We need to take care of this
      * during suspend to ensure we suspend both streams.
      */
-    if ((is_multicast_enabled == TRUE) ||
-        ((event == BTA_AV_AP_STOP_EVT) && (bta_av_multiple_streams_started() == TRUE)))
+    if (is_multicast_enabled == TRUE)
     {
         /* Send START request to all Open Stream connections.*/
         for(xx=0; xx<BTA_AV_NUM_STRS; xx++)
