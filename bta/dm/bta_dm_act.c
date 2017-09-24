@@ -2973,10 +2973,10 @@ static UINT8 bta_dm_sp_cback (tBTM_SP_EVT event, tBTM_SP_EVT_DATA *p_data)
     /*case BTM_SP_KEY_REQ_EVT: */
     case BTM_SP_KEY_NOTIF_EVT:
 #endif
-        bta_dm_cb.num_val = sec_event.key_notif.passkey = p_data->key_notif.passkey;
 
         if(BTM_SP_CFM_REQ_EVT == event)
         {
+          bta_dm_cb.num_val = sec_event.key_notif.passkey = p_data->cfm_req.num_val;
           /* Due to the switch case falling through below to BTM_SP_KEY_NOTIF_EVT,
              call remote name request using values from cfm_req */
           if(p_data->cfm_req.bd_name[0] == 0)
@@ -3007,6 +3007,8 @@ static UINT8 bta_dm_sp_cback (tBTM_SP_EVT event, tBTM_SP_EVT_DATA *p_data)
 
         if (BTM_SP_KEY_NOTIF_EVT == event)
         {
+
+            bta_dm_cb.num_val = sec_event.key_notif.passkey = p_data->key_notif.passkey;
             /* If the device name is not known, save bdaddr and devclass
                and initiate a name request with values from key_notif */
             if(p_data->key_notif.bd_name[0] == 0)
