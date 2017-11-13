@@ -1114,6 +1114,44 @@ int A2DP_GetTrackChannelCount(const uint8_t* p_codec_info) {
   return -1;
 }
 
+int A2DP_GetTrackBitsPerSample(const uint8_t* p_codec_info) {
+  tA2DP_CODEC_TYPE codec_type = A2DP_GetCodecType(p_codec_info);
+
+  LOG_VERBOSE(LOG_TAG, "%s: codec_type = 0x%x", __func__, codec_type);
+
+  switch (codec_type) {
+    case A2DP_MEDIA_CT_SBC:
+      return 16;
+    case A2DP_MEDIA_CT_AAC:
+      return 16;
+    case A2DP_MEDIA_CT_NON_A2DP: {
+      uint32_t vendor_id = A2DP_VendorCodecGetVendorId(p_codec_info);
+      uint16_t codec_id = A2DP_VendorCodecGetCodecId(p_codec_info);
+      // Check for aptX
+      if (vendor_id == A2DP_APTX_VENDOR_ID &&
+          codec_id == A2DP_APTX_CODEC_ID_BLUETOOTH) {
+        return 16;
+      }
+
+      // Check for aptX-HD
+      if (vendor_id == A2DP_APTX_HD_VENDOR_ID &&
+          codec_id == A2DP_APTX_HD_CODEC_ID_BLUETOOTH) {
+        return 24;
+      }
+
+      // Check for LDAC
+      if (vendor_id == A2DP_LDAC_VENDOR_ID && codec_id == A2DP_LDAC_CODEC_ID) {
+        return 32;
+      }
+    }
+    default:
+      break;
+  }
+
+  LOG_ERROR(LOG_TAG, "%s: unsupported codec type 0x%x", __func__, codec_type);
+  return -1;
+}
+
 int A2DP_GetSinkTrackChannelType(const uint8_t* p_codec_info) {
   tA2DP_CODEC_TYPE codec_type = A2DP_GetCodecType(p_codec_info);
 
