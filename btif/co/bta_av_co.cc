@@ -1124,6 +1124,7 @@ const tA2DP_ENCODER_INTERFACE* bta_av_co_get_encoder_interface(void) {
 bool bta_av_co_set_codec_user_config(
     const btav_a2dp_codec_config_t& codec_user_config) {
   uint8_t result_codec_config[AVDT_CODEC_SIZE];
+  RawAddress bt_addr;
   const tBTA_AV_CO_SINK* p_sink = nullptr;
   bool restart_input = false;
   bool restart_output = false;
@@ -1212,14 +1213,19 @@ done:
   // request succeeded or failed.
   // NOTE: Currently, the input is restarted by sending an upcall
   // and informing the Media Framework about the change.
-  btif_dispatch_sm_event(BTIF_AV_SOURCE_CONFIG_UPDATED_EVT, (void *)p_peer->addr.address,
+  if (p_peer == nullptr) {
+    bt_addr = RawAddress::kAny;
+    btif_dispatch_sm_event(BTIF_AV_SOURCE_CONFIG_UPDATED_EVT, (void *)bt_addr.address, sizeof(RawAddress));
+    APPL_TRACE_DEBUG("%s BDA: %s", __func__, bt_addr.ToString().c_str());
+  } else {
+    btif_dispatch_sm_event(BTIF_AV_SOURCE_CONFIG_UPDATED_EVT, (void *)p_peer->addr.address,
                          sizeof(RawAddress));
+    APPL_TRACE_DEBUG("%s BDA: %s", __func__, p_peer->addr.ToString().c_str());
+  }
   if (!success || !restart_output) {
     APPL_TRACE_DEBUG("%s:reseting codec reconfig flag",__func__);
     btif_av_reset_codec_reconfig_flag();
   }
-  APPL_TRACE_DEBUG("%s BDA: %s", __func__, p_peer->addr.ToString().c_str());
-
   return success;
 }
 
