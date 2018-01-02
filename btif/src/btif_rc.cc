@@ -705,7 +705,7 @@ void btif_rc_clear_priority(RawAddress address) {
  *                 Copies the BD address of current playing device
  *
  ***************************************************************************/
-void btif_rc_get_playing_device(RawAddress address) {
+void btif_rc_get_playing_device(RawAddress *address) {
   std::unique_lock<std::mutex> lock(btif_rc_cb.lock);
   if (btif_rc_cb.rc_multi_cb == NULL) {
     BTIF_TRACE_ERROR("%s: RC multicb is NULL", __func__);
@@ -713,7 +713,7 @@ void btif_rc_get_playing_device(RawAddress address) {
   }
   for (int i = 0; i < btif_max_rc_clients; i++) {
     if (btif_rc_cb.rc_multi_cb[i].rc_play_processed)
-      address = btif_rc_cb.rc_multi_cb[i].rc_addr;
+      *address = btif_rc_cb.rc_multi_cb[i].rc_addr;
   }
 }
 
@@ -6308,7 +6308,8 @@ static bt_status_t is_device_active_in_handoff(RawAddress *bd_addr) {
       /* Play initiated locally. check the current device and
        * make sure play is not initiated from other remote
        */
-      btif_rc_get_playing_device(RawAddress::kEmpty);
+      RawAddress dummy_address = RawAddress::kEmpty;
+      btif_rc_get_playing_device(&dummy_address);
       if (!(bd_addr->IsEmpty())) {
         /* some other playing device */
         return BT_STATUS_FAIL;
