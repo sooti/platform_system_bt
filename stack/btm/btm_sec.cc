@@ -2924,6 +2924,7 @@ static tBTM_STATUS btm_sec_dd_create_conn(tBTM_SEC_DEV_REC* p_dev_rec) {
                 p_lcb->link_state == LST_CONNECTING)) {
     BTM_TRACE_WARNING("%s Connection already exists", __func__);
     btm_sec_change_pairing_state(BTM_PAIR_STATE_WAIT_PIN_REQ);
+    btm_cb.pairing_flags |= BTM_PAIR_FLAGS_DISC_WHEN_DONE;
     return BTM_CMD_STARTED;
   }
 
