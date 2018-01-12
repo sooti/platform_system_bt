@@ -2915,12 +2915,12 @@ static bt_status_t init_src(
     btif_max_av_clients = max_a2dp_connections;
     for (int i = 0; i < btif_max_av_clients; i++)
       btif_av_cb[i].codec_priorities = codec_priorities;
-    status = btif_av_init(BTA_A2DP_SOURCE_SERVICE_ID);
-    if (status == BT_STATUS_SUCCESS) bt_av_src_callbacks = callbacks;
     if (codec_config_update_enabled != false) {
         BTIF_TRACE_IMP("%s: Codec cfg update enabled changed to false", __func__);
         codec_config_update_enabled = false;
     }
+    status = btif_av_init(BTA_A2DP_SOURCE_SERVICE_ID);
+    if (status == BT_STATUS_SUCCESS) bt_av_src_callbacks = callbacks;
   }
   return status;
 }
