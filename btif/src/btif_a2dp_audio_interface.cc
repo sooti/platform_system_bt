@@ -234,7 +234,8 @@ void btif_a2dp_audio_interface_init() {
   {
     LOG_INFO(LOG_TAG,"%s:Calling Init",__func__);
     android::sp<IBluetoothAudioCallbacks> callbacks = new BluetoothAudioCallbacks();
-    btAudio->initialize_callbacks(callbacks);
+    auto ret = btAudio->initialize_callbacks(callbacks);
+    if (!ret.isOk()) LOG_ERROR(LOG_TAG,"hal server is dead ");
   }
   deinit_pending = false;
   server_died = false;
@@ -244,7 +245,8 @@ void btif_a2dp_audio_interface_init() {
   } else {
     pthread_detach(audio_hal_monitor);
   }
-  btAudio->linkToDeath(BTAudioHidlDeathRecipient, 0);
+  auto hidl_death_link = btAudio->linkToDeath(BTAudioHidlDeathRecipient, 0);
+  if (!hidl_death_link.isOk()) LOG_ERROR(LOG_TAG,"hidl_death_link server is dead");
   LOG_INFO(LOG_TAG,"%s:Init returned",__func__);
 }
 
@@ -256,11 +258,13 @@ void btif_a2dp_audio_interface_deinit() {
     tBTA_AV_STATUS status = A2DP_CTRL_ACK_DISCONNECT_IN_PROGRESS;
     if (a2dp_cmd_pending == A2DP_CTRL_CMD_START) {
       LOG_INFO(LOG_TAG,"calling method a2dp_on_started");
-      btAudio->a2dp_on_started(mapToStatus(status));
+      auto ret = btAudio->a2dp_on_started(mapToStatus(status));
+      if (!ret.isOk()) LOG_ERROR(LOG_TAG,"a2dp_on_started: server died");
     } else if ((a2dp_cmd_pending == A2DP_CTRL_CMD_SUSPEND)
         || (a2dp_cmd_pending == A2DP_CTRL_CMD_STOP)) {
       LOG_INFO(LOG_TAG,"calling method a2dp_on_started");
-      btAudio->a2dp_on_suspended(mapToStatus(status));
+      auto ret = btAudio->a2dp_on_suspended(mapToStatus(status));
+      if (!ret.isOk()) LOG_ERROR(LOG_TAG,"a2dp_on_suspended: server died");
     }
     a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
   }
@@ -270,7 +274,8 @@ void btif_a2dp_audio_interface_deinit() {
     if (!ret.isOk()) {
       LOG_ERROR(LOG_TAG,"hal server is dead");
     }
-    btAudio->unlinkToDeath(BTAudioHidlDeathRecipient);
+    auto hidl_death_unlink = btAudio->unlinkToDeath(BTAudioHidlDeathRecipient);
+    if (!hidl_death_unlink.isOk()) LOG_ERROR(LOG_TAG,"hidl_death_unlink server died");
   }
   deinit_pending = false;
   btAudio = nullptr;
@@ -286,7 +291,8 @@ void btif_a2dp_audio_on_started(tBTA_AV_STATUS status)
   if (btAudio != nullptr){
     if (a2dp_cmd_pending == A2DP_CTRL_CMD_START) {
       LOG_INFO(LOG_TAG,"calling method a2dp_on_started");
-      btAudio->a2dp_on_started(mapToStatus(status));
+      auto ret = btAudio->a2dp_on_started(mapToStatus(status));
+      if (!ret.isOk()) LOG_ERROR(LOG_TAG,"server died");
       a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
     }
   }
@@ -298,7 +304,8 @@ void btif_a2dp_audio_on_suspended(tBTA_AV_STATUS status)
   if (btAudio != nullptr) {
     if (a2dp_cmd_pending == A2DP_CTRL_CMD_SUSPEND || a2dp_cmd_pending == A2DP_CTRL_CMD_STOP) {
       LOG_INFO(LOG_TAG,"calling method a2dp_on_suspended");
-      btAudio->a2dp_on_suspended(mapToStatus(status));
+      auto ret = btAudio->a2dp_on_suspended(mapToStatus(status));
+      if (!ret.isOk()) LOG_ERROR(LOG_TAG,"server died");
       a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
     }
   }
@@ -315,12 +322,14 @@ void btif_a2dp_audio_on_stopped(tBTA_AV_STATUS status)
     } else {
       if (a2dp_cmd_pending == A2DP_CTRL_CMD_STOP || a2dp_cmd_pending == A2DP_CTRL_CMD_SUSPEND) {
         LOG_INFO(LOG_TAG,"calling method a2dp_on_stopped");
-        btAudio->a2dp_on_stopped(mapToStatus(status));
+        auto ret = btAudio->a2dp_on_stopped(mapToStatus(status));
+        if (!ret.isOk()) LOG_ERROR(LOG_TAG,"a2dp_on_stopped: server died");
         a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
       } else if ((a2dp_cmd_pending == A2DP_CTRL_CMD_START) &&
           (!(btif_av_is_under_handoff() || reconfig_a2dp))) {
         LOG_INFO(LOG_TAG,"Remote disconnected when start under progress");
-        btAudio->a2dp_on_started(mapToStatus(A2DP_CTRL_ACK_DISCONNECT_IN_PROGRESS));
+        auto ret = btAudio->a2dp_on_started(mapToStatus(A2DP_CTRL_ACK_DISCONNECT_IN_PROGRESS));
+        if (!ret.isOk()) LOG_ERROR(LOG_TAG,"a2dp_on_started: server died");
         a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
       }
     }
@@ -435,7 +444,8 @@ void btif_a2dp_audio_send_sink_latency()
 void on_hidl_server_died() {
   LOG_INFO(LOG_TAG,"on_hidl_server_died");
   if (btAudio != nullptr) {
-    btAudio->unlinkToDeath(BTAudioHidlDeathRecipient);
+    auto hidl_death_unlink = btAudio->unlinkToDeath(BTAudioHidlDeathRecipient);
+    if (!hidl_death_unlink.isOk()) LOG_ERROR(LOG_TAG,"hidl_death_unlink server died");
     btAudio = nullptr;
     usleep(1500000); //sleep for 1.5sec for hal server to restart
     btif_dispatch_sm_event(BTIF_AV_REINIT_AUDIO_IF,NULL,0);
