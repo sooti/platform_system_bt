@@ -1823,17 +1823,21 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
           uint8_t* cur_codec_cfg = NULL;
           uint8_t* old_codec_cfg = NULL;
           cur_codec_cfg = bta_av_co_get_peer_codec_info(curr_hdl);
-          BTIF_TRACE_EVENT("BTA_AV_SUSPEND_EVT: Current codec = ");
-          for (int i = 0; i < AVDT_CODEC_SIZE; i++)
-            BTIF_TRACE_EVENT("%d ",cur_codec_cfg[i]);
+          if (cur_codec_cfg != NULL) {
+           BTIF_TRACE_EVENT("BTA_AV_SUSPEND_EVT: Current codec = ");
+           for (int i = 0; i < AVDT_CODEC_SIZE; i++)
+             BTIF_TRACE_EVENT("%d ",cur_codec_cfg[i]);
+          }
           int other_index = btif_av_get_other_connected_idx(index);
           if (other_index != INVALID_INDEX) {
             uint8_t other_hdl = btif_av_cb[other_index].bta_handle;
             old_codec_cfg = bta_av_co_get_peer_codec_info(other_hdl);
           }
-          BTIF_TRACE_EVENT("BTA_AV_SUSPEND_EVT: Old codec = ");
-          for (int i = 0; i < AVDT_CODEC_SIZE; i++)
-            BTIF_TRACE_EVENT("%d ",old_codec_cfg[i]);
+          if (old_codec_cfg != NULL) {
+           BTIF_TRACE_EVENT("BTA_AV_SUSPEND_EVT: Old codec = ");
+           for (int i = 0; i < AVDT_CODEC_SIZE; i++)
+             BTIF_TRACE_EVENT("%d ",old_codec_cfg[i]);
+          }
           if ((cur_codec_cfg != NULL) && (old_codec_cfg != NULL)) {
            if((A2DP_GetTrackBitsPerSample(cur_codec_cfg)==A2DP_GetTrackBitsPerSample(old_codec_cfg))
               && (A2DP_GetTrackSampleRate(cur_codec_cfg)==A2DP_GetTrackSampleRate(old_codec_cfg) &&
