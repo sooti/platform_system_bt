@@ -3280,6 +3280,14 @@ void bta_dm_acl_change(tBTA_DM_MSG* p_data) {
       bta_dm_cb.device_list.le_count--;
     conn.link_down.link_type = p_data->acl_change.transport;
 
+    if ((p_data->acl_change.transport == BT_TRANSPORT_LE) &&
+        bta_dm_search_cb.gatt_disc_active &&
+        bta_dm_search_cb.peer_bdaddr == p_bda) {
+      APPL_TRACE_WARNING("%s cancel gatt discovery, addr: %s", __func__,
+          p_bda.ToString().c_str());
+      bta_dm_cancel_gatt_discovery(bta_dm_search_cb.peer_bdaddr);
+    }
+
     if ((p_data->acl_change.transport == BT_TRANSPORT_BR_EDR) &&
         bta_dm_search_cb.wait_disc &&
         bta_dm_search_cb.peer_bdaddr == p_bda) {
