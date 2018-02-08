@@ -142,7 +142,7 @@ void bta_gatts_add_service_impl(tGATT_IF server_if,
     return;
   }
 
-  bta_gatts_cb.srvc_cb[srvc_idx].service_uuid = service[0].uuid;
+  btif_to_bta_uuid(&bta_gatts_cb.srvc_cb[srvc_idx].service_uuid, &service[0].uuid);
 
   // service_id is equal to service start handle
   bta_gatts_cb.srvc_cb[srvc_idx].service_id = service[0].attribute_handle;
