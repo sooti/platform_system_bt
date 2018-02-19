@@ -1996,6 +1996,12 @@ void bta_av_getcap_results(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   tAVDT_SEP_INFO* p_info = &p_scb->sep_info[p_scb->sep_info_idx];
   uint16_t uuid_int; /* UUID for which connection was initiatied */
 
+  if (p_scb == NULL)
+  {
+    APPL_TRACE_ERROR("%s: no scb found for handle", __func__);
+    return;
+  }
+
   if (p_scb != NULL && p_scb->p_cap == NULL)
   {
     APPL_TRACE_ERROR("bta_av_getcap_results: p_scb->p_cap is NULL");
