@@ -2232,6 +2232,11 @@ void bta_av_str_stopped(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
       bta_av_vendor_offload_stop();
       p_scb->offload_supported = false;
     }
+    if (p_scb->role & BTA_AV_ROLE_START_INT) {
+      p_scb->role &= ~BTA_AV_ROLE_START_INT;
+      APPL_TRACE_DEBUG(" %s: role:x%x, started:%d", __func__,
+                       p_scb->role, p_scb->started);
+    }
     bta_av_stream_chg(p_scb, false);
     p_scb->co_started = false;
 
