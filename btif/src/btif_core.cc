@@ -45,6 +45,7 @@
 #include "bt_common.h"
 #include "bt_utils.h"
 #include "bta_api.h"
+#include "bta_closure_api.h"
 #include "bte.h"
 #include "btif_api.h"
 #include "btif_av.h"
@@ -464,7 +465,7 @@ void btif_enable_bluetooth_evt(tBTA_STATUS status) {
 bt_status_t btif_disable_bluetooth(void) {
   LOG_INFO(LOG_TAG, "%s entered", __func__);
 
-  btm_ble_multi_adv_cleanup();
+  do_in_bta_thread(FROM_HERE, base::Bind(&btm_ble_multi_adv_cleanup));
   // TODO(jpawlowski): this should do whole BTA_VendorCleanup(), but it would
   // kill the stack now.
 
@@ -1199,6 +1200,22 @@ bt_status_t btif_enable_service(tBTA_SERVICE_ID service_id) {
 
   return BT_STATUS_SUCCESS;
 }
+
+
+/*******************************************************************************
+ *
+ * Function         btif_reset_service
+ *
+ * Description      Reset the service mask for the given service id
+ *
+ * Returns          bt_status_t
+ *
+ ******************************************************************************/
+bt_status_t btif_reset_service(tBTA_SERVICE_ID service_id) {
+
+  btif_enabled_services &= (tBTA_SERVICE_MASK)(~(1 << service_id));
+  return BT_STATUS_SUCCESS;
+}
 /*******************************************************************************
  *
  * Function         btif_disable_service
@@ -1210,6 +1227,7 @@ bt_status_t btif_enable_service(tBTA_SERVICE_ID service_id) {
  * Returns          bt_status_t
  *
  ******************************************************************************/
+
 bt_status_t btif_disable_service(tBTA_SERVICE_ID service_id) {
   tBTA_SERVICE_ID* p_id = &service_id;
 
